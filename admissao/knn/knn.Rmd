@@ -1,0 +1,84 @@
+---
+title: "Regressão de Biomassa"
+author: "Luan Roger Santos Santana"
+output:
+  pdf_document: default
+  word_document: default
+  html_document:
+    df_print: paged
+editor_options:
+  markdown: null
+  wrap: 72
+header-includes: \PassOptionsToPackage{x11names}{xcolor}
+---
+```{r setup, echo=FALSE, prompt=FALSE}
+#install.packages("Metrics")
+library("Metrics")
+library("knitr")
+opts_knit$set(root.dir = "./")
+library("caret")
+```
+
+# Preparing data
+
+## Loading Data
+```{r, prompt=FALSE}
+data_raw <- read.csv("../data_sets/Material 03 - 8 – R - Admissao - Dados.csv")
+data_raw_new_cases <- read.csv("../data_sets/Material 03 - 8 – R - Admissao - Dados - Novos Casos - R.csv")
+```
+
+## Cleaning data
+```{r, prompt=FALSE}
+data <- data_raw[,!(names(data_raw) %in% c('Serial.No.'))]
+data_new_cases <- data_raw_new_cases[,!(names(data_raw_new_cases) %in% c('Serial.No.'))]
+print(head(data))
+print(head(data_new_cases))
+```
+
+## Creating data partitioning
+
+```{r, prompt=FALSE}
+set.seed(1988)
+# ran <- sample(1:nrow(data), 0.8 * nrow(data))
+ind <- createDataPartition(data$ChanceOfAdmit, p=0.80, list = FALSE)
+training_data <- data[ind,]
+test_data <- data[-ind,]
+```
+
+
+# Training
+
+## Using KNN
+
+### Creating the model
+```{r, prompt=FALSE}
+tuneGrid <- expand.grid(k = c(1,3,5,7,9))
+set.seed(1988)
+knn <- train(ChanceOfAdmit ~ ., data = training_data, method = "knn", tuneGrid=tuneGrid)
+print(knn)
+```
+
+#### Checking the model with training data
+```{r, prompt=FALSE}
+prediction.knn <- predict(knn, test_data)
+library(Metrics)
+rmse(test_data$biomassa, prediction.knn)
+```
+#### R² function
+```{r, prompt=FALSE}
+r2 <- function(predito, observado) {
+	return(1 - (sum((predito-observado)^2) / sum((predito-mean(observado))^2)))
+}
+r2(prediction.knn,test_data$ChanceOfAdmit)
+```
+
+
+### Checking for new cases
+
+```{r, prompt=FALSE}
+prediction.knn_new_data <- predict(knn, data_new_cases)
+data_new_cases$ChanceOfAdmit <- NULL
+result <- cbind(data_new_cases, ChanceOfAdmit=prediction.knn_new_data)
+print(result)
+```
+
